@@ -1,43 +1,40 @@
 Name:           gmediarender
-Version:        0.0.7
+Version:        0.3.2
 Release:        1%{?dist}
 Summary:        Resource efficient UPnP/DLNA renderer
 
-License:        LGPLv2+
-URL:            http://github.com/hzeller/gmrender-resurrect
-Source0:        http://github.com/hzeller/gmrender-resurrect/%{name}-%{version}.tar.bz2
+License:        GPL-2.0-or-later
+URL:            https://github.com/oopen/gmrender-resurrect
+Source0:        %{name}-%{version}.tar.bz2
 
-BuildRequires:  gstreamer1
+BuildRequires:  gcc
+BuildRequires:  make
+BuildRequires:  pkgconfig
+BuildRequires:  glib2-devel
 BuildRequires:  gstreamer1-devel
-BuildRequires:  gstreamer1-plugins-ugly
-BuildRequires:  gstreamer1-plugins-bad-free
-BuildRequires:  gstreamer1-plugins-base
-BuildRequires:  gstreamer1-plugins-good
 BuildRequires:  libupnp-devel
-BuildRequires:  systemd
+BuildRequires:  systemd-rpm-macros
 
-Requires:  gstreamer1
-Requires:  gstreamer1-plugins-ugly
-Requires:  gstreamer1-plugins-bad-free
-Requires:  gstreamer1-plugins-base
-Requires:  gstreamer1-plugins-good
-Requires:  libupnp
-Requires(pre): shadow-utils
+Requires:       gstreamer1
+Requires:       gstreamer1-plugins-base
+Requires:       gstreamer1-plugins-good
+Requires:       libupnp
+Requires(pre):  shadow-utils
 Requires(post): systemd
 Requires(preun): systemd
 Requires(postun): systemd
 
-
 %description
 GMediaRender is a resource efficient UPnP/DLNA renderer.
+It is controlled by a UPnP/DLNA control point and plays the media through
+GStreamer.
 
 %prep
-%setup -q -n %{name}-%{version}
-./autogen.sh
+%setup -q
 
 %build
 %configure
-make
+%make_build
 
 %pre
 getent group gmediarender >/dev/null || groupadd -r gmediarender
@@ -47,19 +44,12 @@ getent passwd gmediarender >/dev/null || \
 exit 0
 
 %install
-mkdir -p $RPM_BUILD_ROOT/%{_bindir}
-cp ./src/gmediarender $RPM_BUILD_ROOT/%{_bindir}
-
-mkdir -p $RPM_BUILD_ROOT/%{_unitdir}
-cp ./dist-scripts/fedora/%{name}.service $RPM_BUILD_ROOT/%{_unitdir}
-
-mkdir -p $RPM_BUILD_ROOT/usr/share/gmediarender
-cp ./data/grender-64x64.png $RPM_BUILD_ROOT/usr/share/gmediarender
-cp ./data/grender-128x128.png $RPM_BUILD_ROOT/usr/share/gmediarender
-
-mkdir -p $RPM_BUILD_ROOT/usr/lib/firewalld/services
-cp ./dist-scripts/fedora/%{name}.xml $RPM_BUILD_ROOT/usr/lib/firewalld/services
-cp ./dist-scripts/fedora/ssdp.xml $RPM_BUILD_ROOT/usr/lib/firewalld/services
+%make_install
+install -d %{buildroot}%{_unitdir}
+install -m 0644 dist-scripts/fedora/%{name}.service %{buildroot}%{_unitdir}/
+install -d %{buildroot}%{_prefix}/lib/firewalld/services
+install -m 0644 dist-scripts/fedora/%{name}.xml %{buildroot}%{_prefix}/lib/firewalld/services/
+install -m 0644 dist-scripts/fedora/ssdp.xml %{buildroot}%{_prefix}/lib/firewalld/services/
 
 %post
 %systemd_post %{name}.service
@@ -72,18 +62,18 @@ getent passwd gmediarender >/dev/null && userdel gmediarender
 getent group gmediarender >/dev/null && groupdel gmediarender
 %systemd_postun_with_restart %{name}.service
 
-
 %files
-%attr(0755,root,root) %{_bindir}/%{name}
-%config(noreplace) %{_unitdir}/%{name}.service
-%attr(0755,root,root) /usr/lib/firewalld/services/%{name}.xml
-%attr(0755,root,root) /usr/lib/firewalld/services/ssdp.xml
-%attr(0755,gmediarender,gmediarender) /usr/share/%{name}/
-%attr(0644,gmediarender,gmediarender) /usr/share/%{name}/grender-64x64.png
-%attr(0644,gmediarender,gmediarender) /usr/share/%{name}/grender-128x128.png
-
+%license COPYING
+%doc README.md NEWS
+%{_bindir}/%{name}
+%{_unitdir}/%{name}.service
+%{_prefix}/lib/firewalld/services/%{name}.xml
+%{_prefix}/lib/firewalld/services/ssdp.xml
+%{_datadir}/%{name}/
 
 %changelog
+* Tue Oct 06 2026 oopen <oopen@users.noreply.github.com> - 0.3.2-1
+- Update to 0.3.2: GStreamer 1.x and libupnp 1.8+, systemd unit.
 * Sun Mar 29 2015 <admin@vortexbox.org>
 - Updated for systemd snippets, added automatic system user/group add and removal upon installation, added FirewallD support
 * Mon Sep 16 2013 <admin@vortexbox.org>

@@ -1,0 +1,31 @@
+# Maintainer: oopen <oopen@users.noreply.github.com>
+pkgname=gmrender-resurrect
+pkgver=0.3.2
+pkgrel=1
+pkgdesc="Resource efficient UPnP/DLNA renderer"
+arch=('x86_64' 'aarch64' 'armv7h')
+url="https://github.com/oopen/gmrender-resurrect"
+license=('GPL-2.0-or-later')
+depends=('glib2' 'gstreamer' 'gst-plugins-base' 'gst-plugins-good' 'libupnp')
+makedepends=('autoconf' 'automake' 'libtool' 'pkgconf')
+source=("gmediarender-$pkgver.tar.bz2")
+sha256sums=('SKIP')
+
+build() {
+  cd "gmediarender-$pkgver"
+  ./configure --prefix=/usr
+  make
+}
+
+package() {
+  cd "gmediarender-$pkgver"
+  make DESTDIR="$pkgdir" install
+
+  install -Dm755 scripts/systemd/gmediarender-wrapper \
+    "$pkgdir/usr/libexec/gmediarender/gmediarender-wrapper"
+  install -Dm644 scripts/systemd/gmediarender.service \
+    "$pkgdir/usr/lib/systemd/system/gmediarender.service"
+  install -Dm644 scripts/systemd/gmediarender.conf \
+    "$pkgdir/etc/gmediarender/gmediarender.conf"
+  install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

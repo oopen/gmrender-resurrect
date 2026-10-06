@@ -219,3 +219,79 @@ jobs:
           name: deb-armhf
           path: "gmrender-resurrect_*.deb"
           if-no-files-found: error
+
+  # Fedora RPMs, built from the source tarball produced by the distcheck job.
+  # Fedora hosts x86_64 and aarch64 runners, both native.
+  rpm:
+    name: rpm ${{ matrix.arch }}
+    needs: distcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-26.04
+          - arch: aarch64
+            runner: ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Download source tarball
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: source-tarball
+          path: /tmp/src
+      - name: Install RPM build tools and dependencies
+        run: |
+          dnf install -y rpm-build rpmdevtools 'dnf-command(builddep)'
+          dnf builddep -y dist-scripts/fedora/gmediarender.spec
+      - name: Build RPM
+        run: |
+          rpmdev-setuptree
+          cp /tmp/src/gmediarender-*.tar.bz2 ~/rpmbuild/SOURCES/
+          rpmbuild -bb dist-scripts/fedora/gmediarender.spec
+          mkdir -p out
+          cp ~/rpmbuild/RPMS/*/gmediarender-[0-9]*.rpm out/
+      - name: Upload RPM
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: out/*.rpm
+          if-no-files-found: error
+
+  # Arch Linux package (x86_64 only: the official image is x86_64). makepkg
+  # refuses to run as root, so build as an unprivileged user.
+  arch:
+    name: arch x86_64
+    needs: distcheck
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Download source tarball
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: source-tarball
+          path: srctar
+      - name: Build Arch package (non-root)
+        run: |
+          docker run --rm -v "$PWD":/work archlinux:latest bash -euxo pipefail -c '
+            pacman -Syu --noconfirm base-devel glib2 gstreamer gst-plugins-base gst-plugins-good libupnp
+            useradd -m builder
+            install -d -o builder /work/archbuild
+            cp /work/srctar/gmediarender-*.tar.bz2 /work/archbuild/
+            cp /work/dist-scripts/arch/PKGBUILD /work/archbuild/
+            chown -R builder /work/archbuild
+            su - builder -c "cd /work/archbuild && makepkg -f --nodeps"
+            cp /work/archbuild/gmrender-resurrect-[0-9]*.pkg.tar.zst /work/
+          '
+      - name: Upload Arch package
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: arch-x86_64
+          path: "gmrender-resurrect-[0-9]*.pkg.tar.zst"
+          if-no-files-found: error
