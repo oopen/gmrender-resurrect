@@ -86,11 +86,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends $BUILD_DEPS
-      - name: Build
+      - name: Build (portable, libupnp linked statically)
         run: |
           ./autogen.sh
-          ./configure
+          ./configure --enable-static-libupnp
           make -j"$(nproc)"
+          strip --strip-unneeded src/gmediarender
       - name: Package binary
         run: |
           VERSION=$(sed -n 's/^AC_INIT([^,]*, *\([^,]*\).*/\1/p' configure.ac | tr -d '[:space:]')
@@ -130,8 +131,9 @@ jobs:
               apt-get install -y --no-install-recommends '"$BUILD_DEPS"'
               git config --global --add safe.directory /src
               ./autogen.sh
-              ./configure
+              ./configure --enable-static-libupnp
               make -j"$(nproc)"
+              strip --strip-unneeded src/gmediarender
             '
       - name: Package binary
         run: |

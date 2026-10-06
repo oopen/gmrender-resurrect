@@ -88,6 +88,21 @@ if test x$HAVE_LIBUPNP = xyes; then
 fi
 AC_SUBST(HAVE_LIBUPNP)
 
+# Link libupnp (and libixml) statically so the resulting binary is not tied
+# to the build distribution's libupnp SONAME. Handy for portable binaries;
+# distribution packages should leave this disabled and rely on the package
+# manager for libupnp.
+AC_ARG_ENABLE(static-libupnp,
+  AS_HELP_STRING([--enable-static-libupnp],
+    [link libupnp and libixml statically for a portable binary]),
+  enable_static_libupnp=$enableval, enable_static_libupnp=no)
+if test "x$enable_static_libupnp" = xyes && test "x$HAVE_LIBUPNP" = xyes; then
+  LIBUPNP_LINK="-Wl,-Bstatic $LIBUPNP_LIBS -Wl,-Bdynamic"
+else
+  LIBUPNP_LINK="$LIBUPNP_LIBS"
+fi
+AC_SUBST(LIBUPNP_LINK)
+
 dnl Give error and exit if we don't have any UPnP SDK
 if test "x$HAVE_LIBUPNP" = "xno"; then
   if test "x$HAVE_LIBGUPNP" = "xno"; then
