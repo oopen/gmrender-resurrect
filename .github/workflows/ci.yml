@@ -172,7 +172,7 @@ jobs:
       - name: Install packaging dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot $BUILD_DEPS
+          apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot libgstreamer-plugins-base1.0-dev $BUILD_DEPS
       - name: Build Debian package
         run: |
           rm -rf debian
@@ -207,7 +207,7 @@ jobs:
             debian:12 bash -euxo pipefail -c '
               export DEBIAN_FRONTEND=noninteractive
               apt-get update
-              apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot '"$BUILD_DEPS"'
+              apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot libgstreamer-plugins-base1.0-dev '"$BUILD_DEPS"'
               git config --global --add safe.directory /src
               rm -rf debian && cp -r dist-scripts/debian debian
               dpkg-buildpackage -b -us -uc -j"$(nproc)"
