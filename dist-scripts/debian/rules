@@ -1,5 +1,4 @@
 #!/usr/bin/make -f
-export DEB_BUILD_HARDENING=1
 
 %:
 	dh $@
@@ -9,6 +8,4 @@ override_dh_auto_configure:
 	dh_auto_configure --
 
 override_dh_auto_clean:
-	if [ -e ./Makefile ]; then make maintainer-clean; fi
-	xargs rm -f < debian/autoconf.files
-	dh_auto_clean --
+	if [ -e Makefile ]; then $(MAKE) maintainer-clean; fi

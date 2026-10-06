@@ -148,3 +148,74 @@ jobs:
           name: bin-linux-armhf
           path: "*.tar.gz"
           if-no-files-found: error
+
+  # Debian packages built with dpkg-buildpackage inside debian:12. Note these
+  # are dynamically linked against the distribution libupnp (unlike the
+  # portable binaries above), which is what Debian/Ubuntu expect.
+  deb-native:
+    name: deb ${{ matrix.arch }}
+    needs: distcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            runner: ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: debian:12
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install packaging dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot $BUILD_DEPS
+      - name: Build Debian package
+        run: |
+          rm -rf debian
+          cp -r dist-scripts/debian debian
+          dpkg-buildpackage -b -us -uc -j"$(nproc)"
+          mv ../gmrender-resurrect_*.deb .
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: deb-${{ matrix.arch }}
+          path: "gmrender-resurrect_*.deb"
+          if-no-files-found: error
+
+  deb-armhf:
+    name: deb armhf (qemu)
+    needs: distcheck
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4.4.0
+        with:
+          platforms: arm
+      - name: Build Debian package (linux/arm/v7)
+        run: |
+          docker run --rm \
+            --platform linux/arm/v7 \
+            -v "$PWD":/src \
+            -w /src \
+            debian:12 bash -euxo pipefail -c '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot '"$BUILD_DEPS"'
+              git config --global --add safe.directory /src
+              rm -rf debian && cp -r dist-scripts/debian debian
+              dpkg-buildpackage -b -us -uc -j"$(nproc)"
+              mv /*.deb .
+            '
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: deb-armhf
+          path: "gmrender-resurrect_*.deb"
+          if-no-files-found: error
