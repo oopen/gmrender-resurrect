@@ -80,7 +80,7 @@ media format, GMediaRender won't either.
 
 You can test this from the command line:
 
-   gst-launch-0.10 playbin uri=file:///path/to/file
+   gst-launch-1.0 playbin uri=file:///path/to/file
 
 
 Trademarks

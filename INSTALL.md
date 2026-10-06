@@ -15,7 +15,7 @@ sudo aptitude install libupnp-dev libgstreamer1.0-dev \
              gstreamer1.0-libav
 ```
 
-(The code will also compile with the older 0.10 of gstreamer)
+(GStreamer 1.x is required; the discontinued 0.10 series is no longer supported.)
 
 Then pulseaudio or alsa depending on what output you prefer (personally, I use
 alsa)

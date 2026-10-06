@@ -45,6 +45,25 @@ jobs:
           path: "*.tar.bz2"
           if-no-files-found: error
 
+  # Canary: validate that the code still builds against the newest distro
+  # libraries (Ubuntu 26.04, GStreamer 1.28, libupnp 1.14). No artifact.
+  canary:
+    name: canary ubuntu-26.04
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $BUILD_DEPS
+      - name: Bootstrap, configure and build
+        run: |
+          ./autogen.sh
+          ./configure
+          make -j"$(nproc)"
+
   # Native builds: amd64 and arm64 runners, each building inside debian:12.
   build-native:
     name: build ${{ matrix.arch }} (native)

@@ -1,3 +1,12 @@
+2026-10-06 Bump version number: GMediaRender 0.3.2
+	- Modernized library requirements: GStreamer 1.x (>= 1.16) is
+	  required; the discontinued 0.10 series is no longer supported.
+	- Require libupnp >= 1.8.0.
+	- Distribute upnp_compat.h and output_module.h in the release
+	  tarball (fixes `make distcheck`).
+	- Added GitHub Actions CI that builds amd64/arm64/armhf and
+	  publishes tagged tarballs with per-architecture binaries.
+
 2026-02-13 Maintenance release GMediaRender 0.3.1
 2025-01-11 Bump version number: GMediaRender 0.3
         - Mostly compilation fixes with downstream libraries.
