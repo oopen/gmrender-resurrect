@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # The v0.3.1 tag already exists, so allow releasing it manually.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (e.g. v0.3.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    # Reuse the exact same build matrix as CI (no duplication).
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum ./* > SHA256SUMS
+          ls -la
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3.0.3
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            artifacts/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

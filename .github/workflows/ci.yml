@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Dependencies needed to bootstrap and build gmrender-resurrect on Debian 12.
+  BUILD_DEPS: >-
+    build-essential autoconf automake libtool pkg-config git ca-certificates
+    libglib2.0-dev libupnp-dev libgstreamer1.0-dev
+    gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+
+jobs:
+  # Validate the autotools source release (arch-independent, hence amd64 only).
+  distcheck:
+    name: distcheck (source tarball)
+    runs-on: ubuntu-26.04
+    container: debian:12
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends $BUILD_DEPS
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Bootstrap, configure and distcheck
+        run: |
+          ./autogen.sh
+          ./configure
+          make distcheck
+      - name: Upload source tarball
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: source-tarball
+          path: "*.tar.bz2"
+          if-no-files-found: error
+
+  # Native builds: amd64 and arm64 runners, each building inside debian:12.
+  build-native:
+    name: build ${{ matrix.arch }} (native)
+    needs: distcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            runner: ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: debian:12
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends $BUILD_DEPS
+      - name: Build
+        run: |
+          ./autogen.sh
+          ./configure
+          make -j"$(nproc)"
+      - name: Package binary
+        run: |
+          VERSION=$(sed -n 's/^AC_INIT([^,]*, *\([^,]*\).*/\1/p' configure.ac | tr -d '[:space:]')
+          mkdir -p pkg
+          cp src/gmediarender pkg/
+          cp README.md pkg/README.md
+          tar -C pkg -czf "gmediarender-${VERSION}-linux-${{ matrix.arch }}.tar.gz" .
+      - name: Upload binary
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: bin-linux-${{ matrix.arch }}
+          path: "*.tar.gz"
+          if-no-files-found: error
+
+  # armhf has no GitHub-hosted runner: emulated through QEMU on an x64 runner.
+  build-armhf:
+    name: build armhf (qemu)
+    needs: distcheck
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4.4.0
+        with:
+          platforms: arm
+      - name: Build inside debian:12 (linux/arm/v7)
+        run: |
+          docker run --rm \
+            --platform linux/arm/v7 \
+            -v "$PWD":/src \
+            -w /src \
+            debian:12 bash -euxo pipefail -c '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends '"$BUILD_DEPS"'
+              git config --global --add safe.directory /src
+              ./autogen.sh
+              ./configure
+              make -j"$(nproc)"
+            '
+      - name: Package binary
+        run: |
+          VERSION=$(sed -n 's/^AC_INIT([^,]*, *\([^,]*\).*/\1/p' configure.ac | tr -d '[:space:]')
+          mkdir -p pkg
+          cp src/gmediarender pkg/
+          cp README.md pkg/README.md
+          tar -C pkg -czf "gmediarender-${VERSION}-linux-armhf.tar.gz" .
+      - name: Upload binary
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: bin-linux-armhf
+          path: "*.tar.gz"
+          if-no-files-found: error
